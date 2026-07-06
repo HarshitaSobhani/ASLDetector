@@ -1,0 +1,9 @@
+torch
+torchvision
+ultralytics
+roboflow
+gradio
+opencv-python
+pandas
+matplotlib
+tabulate

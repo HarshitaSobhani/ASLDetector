@@ -1,0 +1,8 @@
+signspot/.venv/
+__pycache__/
+*.pyc
+signspot/train/runs/
+signspot/train/weights/*.pt
+signspot/data/dataset/
+signspot/train/train_output.log
+.DS_Store
