@@ -6,11 +6,11 @@
   },
   "runs": {
     "yolov8n": {
-      "train_seconds": 775.8,
+      "train_seconds": 1808.5,
       "weights": "/Users/apple/objectdetection/signspot/train/weights/yolov8n.pt"
     },
     "yolov8s": {
-      "train_seconds": 2100.3,
+      "train_seconds": 3576.6,
       "weights": "/Users/apple/objectdetection/signspot/train/weights/yolov8s.pt"
     }
   }

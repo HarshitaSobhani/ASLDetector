@@ -17,40 +17,41 @@ Sign language recognition is a well-known real-time object detection use case: g
 
 - **yolov8n** (~3.2M params): fastest inference, smallest file, lowest ceiling on accuracy. Right choice when the deployment target is CPU-only or a low-power device and "good enough, fast" beats "best possible, slower."
 - **yolov8s** (~11.2M params): ~3.5x the parameters, meaningfully better representational capacity, but slower per-frame and a larger download/load footprint.
-- On a real, larger ASL dataset the accuracy gap between the two typically widens in `s`'s favor; on this run's dataset (see Dataset caveat below) the gap is a lower bound.
-- **Shipped in the demo:** whichever model wins the test-set mAP50 (see `results/best_model.txt`, chosen automatically by `results/evaluate.py`) — the demo app always loads the current winner rather than hardcoding a size, so re-running evaluation on the real dataset naturally promotes the better model without touching demo code.
+- On the real dataset (see below), yolov8s wins mAP50 by a real margin (0.966 vs 0.896) while being ~2x slower per frame — a genuine accuracy/speed tradeoff, not just noise from a weak synthetic task.
+- **Shipped in the demo:** whichever model wins the test-set mAP50 (see `results/best_model.txt`, chosen automatically by `results/evaluate.py`) — the demo app always loads the current winner rather than hardcoding a size. Currently that's **yolov8s**; if a use case needs the extra ~2x throughput of yolov8n and can tolerate ~7 points lower mAP50, that's a one-line override in `demo/gradio_app.py`'s `best_weights_path()`.
 
 ## Dataset
 
-**IMPORTANT — placeholder data notice:** This run downloads via the `roboflow` pip package, which requires an API key even for public Universe datasets (the "anonymous" access Roboflow documents is really a pre-filled key for that specific public project, still passed as `api_key=`). No key was available in this environment, so `data/download_dataset.py` automatically fell back to **synthetic placeholder data**: random colored rectangles on noisy backgrounds, one random "hand blob" per image, labeled with one of the 26 letters at random. This exists purely to prove the download → train → eval → demo pipeline runs end-to-end; it carries **no real signal** about ASL classification and the mAP numbers in `results/comparison.md` reflect learning an easy synthetic task, not sign language.
+Uses the real "American Sign Language Letters" object-detection dataset from Roboflow Universe (`david-lee-d0rhs/american-sign-language-letters`, version 6): 26 classes (A-Z), pre-labeled bounding boxes, split by Roboflow into 504 train / 144 valid / 72 test images.
 
-**To swap in the real dataset:**
+`data/download_dataset.py` pulls this via the `roboflow` pip package, which requires an API key even for public Universe datasets (the "anonymous" access Roboflow documents is really a pre-filled key tied to that specific public project, still passed as `api_key=`). Set `ROBOFLOW_API_KEY` before running it:
 ```bash
 export ROBOFLOW_API_KEY=your_key_here   # from roboflow.com account settings
-python data/download_dataset.py         # re-downloads real data, overwriting the synthetic set
+python data/download_dataset.py
 python train/train.py
 python results/evaluate.py
 ```
-The rest of the pipeline (training, evaluation, demo) needs no code changes — it's driven entirely by `data/dataset/data.yaml`.
+If no key is set (or the download fails for any reason), the script automatically falls back to **synthetic placeholder data** instead: random colored rectangles on noisy backgrounds, one random "hand blob" per image, labeled with one of the 26 letters at random (see `data/generate_synthetic_dataset.py`). That fallback exists purely to prove the pipeline runs end-to-end when no real data is reachable — it carries no real signal about ASL classification. A `data/dataset/SYNTHETIC.flag` file is written whenever the fallback is used, so it's obvious which mode produced the current `data/dataset/`.
+
+Two gotchas hit while wiring this up, both fixed in `data/download_dataset.py`: (1) Roboflow's SDK silently no-ops the download if the target directory already exists, even if empty — it treats that as "already cached" with no error; (2) Roboflow's YOLOv8 export writes `data.yaml` paths as `../train/images` etc., assuming a folder nesting that isn't actually there, which the script now corrects after download.
 
 ## Design Decisions
 
 - **No CUDA GPU available** (Apple M3, no discrete NVIDIA GPU) — training uses PyTorch's MPS (Metal) backend. Since MPS is slower than a real CUDA GPU for this workload, epochs/batch were scaled down from the spec's 50/16 to **30/8** (see `train/train.py:pick_device_and_hparams`); a plain-CPU fallback further scales to 10/4. Actual device and hyperparameters used for a given run are logged to `train/weights/train_log.json` along with wall-clock training time.
-- **Dataset size (synthetic)**: 26 classes × 12 images = 312 images total, split 80/10/10. Small on purpose — this is a pipeline smoke test, not a training run meant to produce a usable classifier.
-- **Augmentation**: left at Ultralytics' YOLOv8 defaults (mosaic, HSV jitter, flips) rather than hand-tuning — no evidence a custom recipe would help before the real dataset is in place.
+- **Augmentation**: left at Ultralytics' YOLOv8 defaults (mosaic, HSV jitter, flips) rather than hand-tuning — the real dataset already reached 0.90+/0.96+ mAP50 without any custom recipe.
 - **Confidence threshold**: demo filters detections below 0.35 confidence to keep the live feed readable.
 - **Best-model selection**: automatic, by test-set mAP50 (see Tradeoffs above), not hardcoded.
 
 ## Results
 
-Trained on Apple M3 (MPS backend, no CUDA GPU) — yolov8n took 12.9 min (30 epochs), yolov8s took 35.0 min (30 epochs); full numbers in `train/weights/train_log.json`. Test-set evaluation (`results/evaluate.py`), **on the synthetic placeholder dataset** (see caveat above — these are pipeline-sanity numbers, not real ASL accuracy):
+Trained on the real ASL Letters dataset (504 train / 144 valid / 72 test images, 26 classes), on Apple M3 (MPS backend, no CUDA GPU) — yolov8n took 30.1 min (30 epochs), yolov8s took 59.6 min (30 epochs); full numbers in `train/weights/train_log.json`. Test-set evaluation (`results/evaluate.py`):
 
 | model   | mAP50 | mAP50-95 | latency (ms/frame) | fps  | size (MB) |
 |:--------|------:|---------:|--------------------:|-----:|----------:|
-| yolov8n | 0.150 |    0.148 |                45.0 | 22.2 |      5.97 |
-| yolov8s | 0.208 |    0.208 |               102.4 |  9.8 |     21.49 |
+| yolov8n | 0.896 |    0.856 |                35.0 | 28.6 |      5.95 |
+| yolov8s | 0.966 |    0.935 |                73.0 | 13.7 |     21.48 |
 
-yolov8s scores higher mAP50 but is ~2.3x slower per frame and ~3.6x the file size — the expected accuracy/speed tradeoff, though the absolute numbers are low because the synthetic task (random rectangle position/size, arbitrary label) has weak visual signal by design. `results/evaluate.py` picked **yolov8s** as the winner by mAP50, so that's what `demo/gradio_app.py` loads. On the real dataset this comparison should be re-run — with real hand shapes the accuracy gap and the right size/speed pick could both look different (a real-time webcam demo may end up preferring yolov8n's 2x+ speed if the accuracy gap narrows). See [`results/comparison.md`](results/comparison.md) and [`results/comparison_chart.png`](results/comparison_chart.png).
+Both models learned the task well — real ASL hand shapes turned out to be an easier detection target than the tiny synthetic placeholder set implied. yolov8s wins mAP50 by ~7 points but is ~2.1x slower per frame (CPU inference measured here; both still comfortably real-time for a webcam demo). `results/evaluate.py` picked **yolov8s** as the winner by mAP50, so that's what `demo/gradio_app.py` loads — the accuracy gap here is large enough that the extra latency is worth it for a demo focused on correctness. For a deployment target where frame rate matters more (e.g. a low-power device), yolov8n at 0.896 mAP50 / 28.6 fps is a reasonable second choice. See [`results/comparison.md`](results/comparison.md) and [`results/comparison_chart.png`](results/comparison_chart.png).
 
 ## How to run
 
@@ -60,7 +61,8 @@ python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# 2. Get the dataset (real if ROBOFLOW_API_KEY is set, else synthetic fallback)
+# 2. Get the dataset (needs ROBOFLOW_API_KEY; falls back to synthetic placeholder data otherwise)
+export ROBOFLOW_API_KEY=your_key_here
 python data/download_dataset.py
 
 # 3. Train both model variants
