@@ -5,30 +5,28 @@ apples-to-apples. Epochs/batch scale down by available accelerator tier
 since this box has no CUDA GPU -- see README 'Design Decisions'.
 """
 import json
+import sys
 import time
 from pathlib import Path
 
-import torch
 from ultralytics import YOLO
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from common import DATA_YAML, HYPERPARAM_TIERS, IMGSZ, device_tier, pick_device  # noqa: E402
+
 ROOT = Path(__file__).parent.parent
-DATA_YAML = ROOT / "data" / "dataset" / "data.yaml"
 RUNS_DIR = ROOT / "train" / "runs"
 WEIGHTS_DIR = ROOT / "train" / "weights"
 
 MODELS = ["yolov8n.pt", "yolov8s.pt"]
 
 
-def pick_device_and_hparams():
-    if torch.cuda.is_available():
-        return "0", dict(epochs=50, batch=16)
-    if torch.backends.mps.is_available():
-        return "mps", dict(epochs=30, batch=8)
-    return "cpu", dict(epochs=10, batch=4)
-
-
 def main():
-    device, hparams = pick_device_and_hparams()
+    if not DATA_YAML.exists():
+        raise SystemExit(f"No dataset at {DATA_YAML}. Run data/download_dataset.py first.")
+
+    device = pick_device()
+    hparams = HYPERPARAM_TIERS[device_tier(device)]
     print(f"Device: {device}, hyperparameters: {hparams}")
 
     WEIGHTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -41,7 +39,7 @@ def main():
         start = time.time()
         model.train(
             data=str(DATA_YAML),
-            imgsz=640,
+            imgsz=IMGSZ,
             epochs=hparams["epochs"],
             batch=hparams["batch"],
             device=device,

@@ -2,45 +2,55 @@
 
 Writes results/comparison.md and results/comparison_chart.png.
 """
+import sys
 import time
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 from ultralytics import YOLO
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from common import DATA_YAML, IMGSZ, WEIGHTS_DIR, load_trained_model, pick_device  # noqa: E402
+
 ROOT = Path(__file__).parent.parent
-DATA_YAML = ROOT / "data" / "dataset" / "data.yaml"
-WEIGHTS_DIR = ROOT / "train" / "weights"
 RESULTS_DIR = ROOT / "results"
 
 TAGS = ["yolov8n", "yolov8s"]
 LATENCY_RUNS = 20
 
 
-def benchmark_latency(model: YOLO, imgsz=640) -> float:
-    import numpy as np
-
-    dummy = (np.random.default_rng(0).integers(0, 255, (imgsz, imgsz, 3))).astype("uint8")
+def benchmark_latency(model: YOLO, device: str, imgsz: int = IMGSZ) -> float:
+    # Random noise input is standard practice for CNN latency benchmarking:
+    # a forward pass's compute cost is determined by tensor shape, not pixel
+    # content, so a real image would measure the same latency here.
+    dummy = np.random.default_rng(0).integers(0, 255, (imgsz, imgsz, 3)).astype("uint8")
     for _ in range(3):  # warmup
-        model.predict(dummy, verbose=False)
+        model.predict(dummy, device=device, verbose=False)
     start = time.time()
     for _ in range(LATENCY_RUNS):
-        model.predict(dummy, verbose=False)
+        model.predict(dummy, device=device, verbose=False)
     return (time.time() - start) / LATENCY_RUNS * 1000  # ms/frame
 
 
 def main():
+    if not DATA_YAML.exists():
+        raise SystemExit(f"No dataset at {DATA_YAML}. Run data/download_dataset.py first.")
+
+    device = pick_device()
+    print(f"Device: {device}")
+
     rows = []
     for tag in TAGS:
         weights_path = WEIGHTS_DIR / f"{tag}.pt"
-        model = YOLO(str(weights_path))
+        model = load_trained_model(weights_path)
 
-        metrics = model.val(data=str(DATA_YAML), split="test", verbose=False)
+        metrics = model.val(data=str(DATA_YAML), split="test", device=device, verbose=False)
         map50 = metrics.box.map50
         map5095 = metrics.box.map
 
-        latency_ms = benchmark_latency(model)
+        latency_ms = benchmark_latency(model, device)
         size_mb = weights_path.stat().st_size / (1024 * 1024)
 
         rows.append(
@@ -57,7 +67,7 @@ def main():
     df = pd.DataFrame(rows)
     RESULTS_DIR.mkdir(exist_ok=True)
 
-    md = ["# Model Comparison: yolov8n vs yolov8s\n", df.to_markdown(index=False), ""]
+    md = ["# Model Comparison: yolov8n vs yolov8s\n", f"Device: `{device}`\n", df.to_markdown(index=False), ""]
     (RESULTS_DIR / "comparison.md").write_text("\n".join(md))
     print(df.to_markdown(index=False))
 
@@ -66,7 +76,7 @@ def main():
     axes[0].set_title("mAP50 (accuracy)")
     axes[0].set_ylim(0, 1)
     axes[1].bar(df["model"], df["latency_ms_per_frame"], color=["#4C72B0", "#DD8452"])
-    axes[1].set_title("Latency (ms/frame, lower is better)")
+    axes[1].set_title(f"Latency (ms/frame, {device}, lower is better)")
     fig.tight_layout()
     fig.savefig(RESULTS_DIR / "comparison_chart.png", dpi=150)
     print("Wrote results/comparison.md and results/comparison_chart.png")

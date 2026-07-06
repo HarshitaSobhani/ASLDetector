@@ -4,20 +4,11 @@ Usage:
     python demo/predict_image.py path/to/image.jpg [--out path/to/annotated.jpg]
 """
 import argparse
+import sys
 from pathlib import Path
 
-from ultralytics import YOLO
-
-ROOT = Path(__file__).parent.parent
-WEIGHTS_DIR = ROOT / "train" / "weights"
-
-
-def best_weights_path() -> Path:
-    best_file = ROOT / "results" / "best_model.txt"
-    if best_file.exists():
-        tag = best_file.read_text().strip()
-        return WEIGHTS_DIR / f"{tag}.pt"
-    return WEIGHTS_DIR / "yolov8n.pt"  # fallback default
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from common import best_weights_path, load_trained_model, pick_device  # noqa: E402
 
 
 def main():
@@ -28,9 +19,9 @@ def main():
     args = parser.parse_args()
 
     weights = Path(args.weights) if args.weights else best_weights_path()
-    model = YOLO(str(weights))
+    model = load_trained_model(weights)
 
-    results = model.predict(args.image, verbose=False)
+    results = model.predict(args.image, device=pick_device(), verbose=False)
     result = results[0]
 
     out_path = Path(args.out) if args.out else Path(args.image).with_stem(Path(args.image).stem + "_annotated")
