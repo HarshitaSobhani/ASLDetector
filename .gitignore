@@ -5,4 +5,6 @@ signspot/train/runs/
 signspot/train/weights/*.pt
 signspot/data/dataset/
 signspot/train/train_output.log
+signspot/yolov8n.pt
+signspot/yolov8s.pt
 .DS_Store
