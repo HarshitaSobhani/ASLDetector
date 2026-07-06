@@ -41,6 +41,7 @@ demo = gr.Interface(
     inputs=gr.Image(sources=["webcam"], label="Webcam"),
     outputs=gr.Image(label="Detected ASL Letter"),
     live=True,
+    flagging_mode="never",
     title="SignSpot — Real-Time ASL Alphabet Detection",
     description=(
         f"Model: {MODEL_PATH.name}. Show an ASL letter hand sign to the camera; "
