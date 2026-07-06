@@ -30,14 +30,15 @@ model = YOLO(str(MODEL_PATH))
 def detect(frame):
     if frame is None:
         return None
-    results = model.predict(frame, verbose=False, conf=0.35)
-    annotated = results[0].plot()  # BGR->RGB handled internally by ultralytics for numpy arrays
-    return annotated[:, :, ::-1] if annotated.shape[-1] == 3 else annotated
+    bgr_frame = frame[:, :, ::-1]  # Gradio gives RGB; Ultralytics assumes BGR for raw numpy input
+    results = model.predict(bgr_frame, verbose=False, conf=0.35)
+    annotated = results[0].plot()  # returns BGR
+    return annotated[:, :, ::-1]  # back to RGB for Gradio
 
 
 demo = gr.Interface(
     fn=detect,
-    inputs=gr.Image(sources=["webcam"], streaming=True, label="Webcam"),
+    inputs=gr.Image(sources=["webcam"], label="Webcam"),
     outputs=gr.Image(label="Detected ASL Letter"),
     live=True,
     title="SignSpot — Real-Time ASL Alphabet Detection",
