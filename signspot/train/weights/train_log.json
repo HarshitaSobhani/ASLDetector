@@ -1,0 +1,17 @@
+{
+  "device": "mps",
+  "hyperparameters": {
+    "epochs": 30,
+    "batch": 8
+  },
+  "runs": {
+    "yolov8n": {
+      "train_seconds": 775.8,
+      "weights": "/Users/apple/objectdetection/signspot/train/weights/yolov8n.pt"
+    },
+    "yolov8s": {
+      "train_seconds": 2100.3,
+      "weights": "/Users/apple/objectdetection/signspot/train/weights/yolov8s.pt"
+    }
+  }
+}

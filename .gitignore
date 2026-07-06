@@ -2,6 +2,7 @@ signspot/.venv/
 __pycache__/
 *.pyc
 signspot/train/runs/
+signspot/runs/
 signspot/train/weights/*.pt
 signspot/data/dataset/
 signspot/train/train_output.log
