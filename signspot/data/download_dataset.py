@@ -27,17 +27,29 @@ def try_roboflow_download() -> Path | None:
 
         rf = Roboflow(api_key=api_key)
         project = rf.workspace(WORKSPACE).project(PROJECT)
+        # location must NOT already exist -- roboflow's SDK silently skips the
+        # actual download (treats it as already-cached) if the dir is present.
         dataset = project.version(VERSION).download("yolov8", location=str(DATA_DIR))
-        return Path(dataset.location) / "data.yaml"
+        data_yaml = Path(dataset.location) / "data.yaml"
+        _fix_roboflow_yaml_paths(data_yaml)
+        return data_yaml
     except Exception as e:  # noqa: BLE001 -- any failure means fall back
         print(f"Roboflow download failed ({e}); falling back to synthetic dataset.")
         return None
 
 
+def _fix_roboflow_yaml_paths(data_yaml: Path) -> None:
+    """Roboflow's yolov8 export writes train/val/test as '../train/images' etc,
+    assuming data.yaml sits one folder deeper than it actually does. Strip the
+    stray '../' so paths resolve relative to data.yaml's own directory."""
+    text = data_yaml.read_text()
+    fixed = text.replace("../train/", "train/").replace("../valid/", "valid/").replace("../test/", "test/")
+    data_yaml.write_text(fixed)
+
+
 def main():
     if DATA_DIR.exists():
         shutil.rmtree(DATA_DIR)
-    DATA_DIR.mkdir(parents=True)
 
     data_yaml = try_roboflow_download()
     if data_yaml is None:
