@@ -8,8 +8,6 @@ purely to prove the train/eval/demo pipeline runs end to end.
 ponytail: fake data, real pipeline. Swap for the real dataset (see README)
 to get meaningful accuracy numbers.
 """
-import random
-
 import cv2
 import numpy as np
 
@@ -18,16 +16,15 @@ IMG_SIZE = 640
 N_PER_CLASS = 12  # 26 * 12 = 312 images, enough for an 80/10/10 split
 
 
-def _make_image(rng: random.Random):
-    img = (rng.randint(0, 40) + np.random.default_rng(rng.randint(0, 2**31)).integers(
-        0, 60, (IMG_SIZE, IMG_SIZE, 3), dtype=np.uint8
-    )).astype(np.uint8)
+def _make_image(rng: np.random.Generator):
+    base = int(rng.integers(0, 41))
+    img = (base + rng.integers(0, 60, (IMG_SIZE, IMG_SIZE, 3))).astype(np.uint8)
 
-    w = rng.randint(150, 350)
-    h = rng.randint(150, 350)
-    x = rng.randint(0, IMG_SIZE - w)
-    y = rng.randint(0, IMG_SIZE - h)
-    color = (rng.randint(150, 255), rng.randint(120, 200), rng.randint(120, 200))
+    w = int(rng.integers(150, 351))
+    h = int(rng.integers(150, 351))
+    x = int(rng.integers(0, IMG_SIZE - w + 1))
+    y = int(rng.integers(0, IMG_SIZE - h + 1))
+    color = (int(rng.integers(150, 256)), int(rng.integers(120, 201)), int(rng.integers(120, 201)))
     cv2.rectangle(img, (x, y), (x + w, y + h), color, thickness=-1)
     cv2.rectangle(img, (x, y), (x + w, y + h), (0, 0, 0), thickness=2)
 
@@ -39,7 +36,7 @@ def _make_image(rng: random.Random):
 
 
 def generate(out_dir):
-    rng = random.Random(42)
+    rng = np.random.default_rng(42)
     samples = []
     for class_id, letter in enumerate(CLASSES):
         for i in range(N_PER_CLASS):
