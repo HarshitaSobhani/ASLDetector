@@ -108,3 +108,7 @@ tests/          test_data_pipeline.py -- run with `python tests/test_data_pipeli
 `tests/test_data_pipeline.py` is a plain assert-based script (no test framework) covering the two real bugs this project hit during review: synthetic label format/range correctness (class id, normalized bbox coords), and a regression test for the Roboflow `data.yaml` path-rewrite fix. Run it directly, no pytest required.
 
 CI (`.github/workflows/ci.yml`) runs on every push/PR: installs dependencies, syntax-checks every `.py` file, and runs the test suite. It deliberately does **not** run training or evaluation — that needs a `ROBOFLOW_API_KEY`, takes 30-90 minutes even on Apple Silicon MPS, and GitHub-hosted runners have no GPU/MPS acceleration, making a full retrain in CI both credential-dependent and impractically slow for a per-commit check.
+
+## Related Projects
+
+[Sports Multi-Object Tracker](https://github.com/HarshitaSobhani/Multi-Object-Detection-and-Persistent-ID-Tracking-in-Public-Sports-Event-Footage) — a complementary computer-vision project, deliberately different in kind rather than a repeat of this one: it uses off-the-shelf (not fine-tuned) YOLOv8n plus ByteTrack to detect and persistently track multiple people across video frames, deployed as a live Hugging Face Space. That project is about temporal tracking and motion-based identity association; this one is about fine-tuning a detector on a custom dataset and rigorously evaluating model-size tradeoffs (accuracy vs. speed).
