@@ -1,4 +1,4 @@
-# SignSpot
+# ASL Detector
 
 **30-second pitch:** Real-time American Sign Language alphabet detector — fine-tunes YOLOv8 (nano vs small) to draw a bounding box and predicted letter over a webcam feed, with a head-to-head speed/accuracy comparison between model sizes served through a live Gradio demo.
 
@@ -94,13 +94,12 @@ python tests/test_data_pipeline.py
 ## Structure
 
 ```
-signspot/
-  common.py       shared device selection, model loading, and config (conf threshold, hyperparameter tiers)
-  data/           download_dataset.py, generate_synthetic_dataset.py (fallback), dataset/ (data.yaml + images/labels)
-  train/          train.py, weights/ (best.pt per variant, committed, + train_log.json)
-  results/        evaluate.py, comparison.md, comparison_chart.png, best_model.txt
-  demo/           gradio_app.py (live webcam), predict_image.py (single image)
-  tests/          test_data_pipeline.py -- run with `python tests/test_data_pipeline.py`
+common.py       shared device selection, model loading, and config (conf threshold, hyperparameter tiers)
+data/           download_dataset.py, generate_synthetic_dataset.py (fallback), dataset/ (data.yaml + images/labels)
+train/          train.py, weights/ (best.pt per variant, committed, + train_log.json)
+results/        evaluate.py, comparison.md, comparison_chart.png, best_model.txt
+demo/           gradio_app.py (live webcam), predict_image.py (single image)
+tests/          test_data_pipeline.py -- run with `python tests/test_data_pipeline.py`
 .github/workflows/ci.yml   syntax check + test suite on every push/PR (no training -- see below)
 ```
 

@@ -1,4 +1,4 @@
-"""SignSpot live demo: webcam -> ASL letter detection, via Gradio.
+"""Live demo: webcam -> ASL letter detection, via Gradio.
 
 Loads whichever model results/evaluate.py determined performs best
 (see results/best_model.txt), falling back to yolov8n if evaluation
@@ -32,7 +32,7 @@ demo = gr.Interface(
     outputs=gr.Image(label="Detected ASL Letter"),
     live=True,
     flagging_mode="never",
-    title="SignSpot — Real-Time ASL Alphabet Detection",
+    title="ASL Detector — Real-Time ASL Alphabet Detection",
     description=(
         f"Model: {MODEL_PATH.name} (device: {DEVICE}). Show an ASL letter hand sign to the "
         "camera; bounding box, predicted letter, and confidence are drawn live."

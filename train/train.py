@@ -54,7 +54,7 @@ def main():
         dest = WEIGHTS_DIR / f"{tag}.pt"
         dest.write_bytes(best.read_bytes())
 
-        log["runs"][tag] = {"train_seconds": round(elapsed, 1), "weights": str(dest)}
+        log["runs"][tag] = {"train_seconds": round(elapsed, 1), "weights": str(dest.relative_to(ROOT))}
         print(f"{tag} done in {elapsed:.1f}s -> {dest}")
 
     (WEIGHTS_DIR / "train_log.json").write_text(json.dumps(log, indent=2))
